@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Aprendiz;
+use App\Models\AprendizMongo;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 class AprendizController extends Controller
@@ -32,6 +34,12 @@ class AprendizController extends Controller
 
         $aprendiz = Aprendiz::create($datos);
 
+        try {
+            AprendizMongo::create(array_merge($datos, ['mysql_id' => $aprendiz->id]));
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo replicar en Mongo (crear): ' . $e->getMessage());
+        }
+
         return response()->json($aprendiz, 201);
     }
 
@@ -59,13 +67,26 @@ class AprendizController extends Controller
 
         $aprendiz->update($datos);
 
+        try {
+            AprendizMongo::where('mysql_id', $aprendiz->id)->update($datos);
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo replicar en Mongo (actualizar): ' . $e->getMessage());
+        }
+
         return response()->json($aprendiz);
     }
 
     // Eliminar un aprendiz
     public function destroy(Aprendiz $aprendiz)
     {
+        $id = $aprendiz->id;
         $aprendiz->delete();
+
+        try {
+            AprendizMongo::where('mysql_id', $id)->delete();
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo replicar en Mongo (eliminar): ' . $e->getMessage());
+        }
 
         return response()->json(['mensaje' => 'Aprendiz eliminado']);
     }
